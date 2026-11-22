@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PhishSynth AI - Synthetic phishing data for detection models</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+<div class="blob blob-1"></div><div class="blob blob-2"></div><div class="blob blob-3"></div>
+<main class="wrap">
+  <header>
+    <h1><i class="fa-solid fa-shield-halved"></i> PhishSynth AI</h1>
+    <p>Generate safe, labelled phishing-style emails and train a detector on them.</p>
+    <span class="pill {{ 'ok' if groq_ready else 'warn' }}">
+      <i class="fa-solid {{ 'fa-bolt' if groq_ready else 'fa-file-lines' }}"></i>
+      {{ 'openai/gpt-oss-120b connected' if groq_ready else 'Template mode: add GROQ_API_KEY to .env for AI generation' }}
+    </span>
+  </header>
+
+  <nav class="tabs" role="tablist">
+    <button class="tab active" data-tab="generate"><i class="fa-solid fa-wand-magic-sparkles"></i> Generate</button>
+    <button class="tab" data-tab="dataset"><i class="fa-solid fa-table"></i> Dataset</button>
+    <button class="tab" data-tab="train"><i class="fa-solid fa-chart-line"></i> Train &amp; evaluate</button>
+    <button class="tab" data-tab="spec"><i class="fa-solid fa-clipboard-check"></i> Safety &amp; spec</button>
+  </nav>
+
+  <!-- GENERATE -->
+  <section id="tab-generate" class="panel active">
+    <form id="gen-form" class="glass">
+      <label>Category
+        <select id="category">{% for k, c in categories.items() %}<option value="{{ k }}">{{ c.label }}</option>{% endfor %}</select>
+      </label>
+      <p id="cat-desc" class="hint"></p>
+      <div class="row">
+        <div><span class="lbl">Style</span><div class="seg" data-name="style">{% for s in styles %}<button type="button" class="{{ 'on' if loop.first }}" data-v="{{ s }}">{{ s|capitalize }}</button>{% endfor %}</div></div>
+        <div><span class="lbl">Difficulty</span><div class="seg" data-name="difficulty"><button type="button" class="on" data-v="easy">Obvious</button><button type="button" data-v="hard">Subtle</button></div></div>
+        <label>How many: <b id="count-out">3</b><input id="count" type="range" min="1" max="10" value="3"></label>
+      </div>
+      <label>Scenario hint (optional)
+        <textarea id="context" maxlength="2000" rows="2" placeholder="Describe the setting in words, e.g. 'payroll team at a mid-size hospital'. No links or addresses."></textarea>
+      </label>
+      <label class="check"><input type="checkbox" id="save" checked> Add results to my dataset</label>
+      <button class="primary" id="gen-btn" type="submit"><span class="btn-text">Generate samples</span><span class="loader"></span></button>
+    </form>
+    <div id="gen-notice" class="notice" hidden></div>
+    <div id="emails" class="grid"></div>
+  </section>
+
+  <!-- DATASET -->
+  <section id="tab-dataset" class="panel">
+    <div class="glass">
+      <h2>Build a dataset</h2>
+      <div class="row">
+        <label>Samples per phishing category: <b id="per-out">25</b><input id="per" type="range" min="5" max="100" step="5" value="25"></label>
+        <label>Legitimate : phishing ratio: <b id="ratio-out">1.0</b><input id="ratio" type="range" min="0.2" max="2" step="0.1" value="1"></label>
+      </div>
+      <label class="check"><input type="checkbox" id="use-groq" {{ '' if groq_ready else 'disabled' }}> Use Groq for more variety (slower, uses API quota)</label>
+      <div class="btns">
+        <button class="primary" id="build-btn"><span class="btn-text">Build dataset</span><span class="loader"></span></button>
+        <button class="ghost" id="refine-btn"><i class="fa-solid fa-broom"></i> Remove near-duplicates</button>
+        <a class="ghost" href="/dataset/download?fmt=csv"><i class="fa-solid fa-download"></i> CSV</a>
+        <a class="ghost" href="/dataset/download?fmt=jsonl"><i class="fa-solid fa-download"></i> JSONL</a>
+        <button class="ghost danger" id="clear-btn"><i class="fa-solid fa-trash"></i> Clear</button>
+      </div>
+    </div>
+    <div id="ds-stats" class="stats"></div>
+    <div id="ds-suggest" class="notice" hidden></div>
+    <div class="glass tablewrap"><table id="ds-table"><thead><tr><th>Label</th><th>Category</th><th>Difficulty</th><th>Subject</th><th>Source</th></tr></thead><tbody></tbody></table>
+      <p id="ds-empty" class="hint">No samples yet. Generate some or build a dataset above.</p></div>
+  </section>
+
+  <!-- TRAIN -->
+  <section id="tab-train" class="panel">
+    <div class="glass">
+      <h2>Train a baseline detector</h2>
+      <div class="row">
+        <label>Model<select id="model"><option value="logistic_regression">Logistic regression</option><option value="naive_bayes">Naive Bayes</option><option value="random_forest">Random forest</option></select></label>
+        <label>Test split: <b id="split-out">25%</b><input id="split" type="range" min="10" max="40" step="5" value="25"></label>
+      </div>
+      <button class="primary" id="train-btn"><span class="btn-text">Train &amp; evaluate</span><span class="loader"></span></button>
+    </div>
+    <div id="results" hidden>
+      <div id="metrics" class="stats"></div>
+      <div class="two">
+        <div class="glass"><h3>Confusion matrix</h3><div id="cm"></div></div>
+        <div class="glass"><h3>Recall by category</h3><div id="bars-cat"></div></div>
+      </div>
+      <div class="two">
+        <div class="glass"><h3>Held-out category recall</h3><p class="hint">Trained without that category, tested on it. Shows how well the model handles an unseen manipulation style.</p><div id="bars-gen"></div></div>
+        <div class="glass"><h3>Strongest signals</h3><div id="feat"></div></div>
+      </div>
+      <div class="glass"><h3>What to improve</h3><ul id="advice"></ul><div id="wrong"></div></div>
+    </div>
+    <div class="two">
+      <div class="glass"><h3>Try the detector</h3>
+        <textarea id="probe" rows="4" maxlength="4000" placeholder="Paste an email here (use [SAFE-LINK] in place of links)."></textarea>
+        <button class="ghost" id="probe-btn">Check email</button><div id="probe-out" class="probe"></div></div>
+      <div class="glass"><h3>Test on your own data</h3><p class="hint">Upload a labelled CSV with columns <code>subject, body, label</code> (1 = phishing, 0 = legitimate). Synthetic-only scores are optimistic; real data gives the honest number.</p>
+        <input type="file" id="upload" accept=".csv"><div id="upload-out" class="probe"></div></div>
+    </div>
+  </section>
+
+  <!-- SPEC -->
+  <section id="tab-spec" class="panel">
+    <div class="glass"><h2>Phishing categories</h2>
+      <table><thead><tr><th>Category</th><th>What it simulates</th><th>Typical cues</th></tr></thead><tbody>
+      {% for k, c in categories.items() %}<tr><td>{{ c.label }}</td><td>{{ c.desc }}</td><td>{{ c.indicators|join(', ') }}</td></tr>{% endfor %}</tbody></table></div>
+    <div class="glass"><h2>Safety controls</h2>
+      <p>Allowed placeholders: {% for p in placeholders %}<code>{{ p }}</code> {% endfor %}</p>
+      <ul>
+        <li>Every sample is sanitised: links become <code>[SAFE-LINK]</code>, addresses and numbers are replaced, real brand names become <code>[COMPANY]</code>.</li>
+        <li>Samples that mention malware, card or wallet details, or attachments to open are rejected.</li>
+        <li>Nothing is sent anywhere. Output is training text for classifiers, not something to deploy.</li>
+        <li>Use only for defensive research, detection-model development and awareness training.</li>
+      </ul></div>
+  </section>
+</main>
+<div id="toast" role="status"></div>
+<script>window.CATS = {{ categories|tojson }};</script>
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body></html>

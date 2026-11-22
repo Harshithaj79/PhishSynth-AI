@@ -1,0 +1,9 @@
+Flask==3.0.3
+groq==0.11.0
+httpx==0.27.2
+python-dotenv==1.0.1
+pyngrok
+scikit-learn>=1.4
+pandas>=2.0
+numpy>=1.26
+pytest
