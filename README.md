@@ -242,7 +242,3 @@ Intended for defensive research, classifier development and security-awareness d
 
 Python · Flask · Groq API (`openai/gpt-oss-120b`) · scikit-learn · pandas · NumPy · pyngrok · HTML/CSS/JavaScript · pytest
 
-
-## 🙌 Acknowledgements
-
-Architecture and workflow inspired by the CaptionAI project (Flask + Groq + Ngrok).
