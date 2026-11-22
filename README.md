@@ -36,7 +36,6 @@ Security teams need diverse data to train phishing detectors, but real phishing 
 |---|---|---|
 | <img width="600" src="https://github.com/user-attachments/assets/7399246f-dc41-4c67-b7f3-b2b36254768e" alt="Generate" /> | <img width="400" src="https://github.com/user-attachments/assets/9fc752d3-1864-46b0-abe3-4f1aa97242f9" alt="Dataset" /> | <img width="400" src="https://github.com/user-attachments/assets/092029e3-6ef6-4671-93cf-a0202d4c8e92" alt="Train and Evaluate" /> |
 
-*(Add your own screenshots to `docs/screenshots/`.)*
 
 ## 🏗️ Architecture
 
@@ -243,9 +242,6 @@ Intended for defensive research, classifier development and security-awareness d
 
 Python · Flask · Groq API (`openai/gpt-oss-120b`) · scikit-learn · pandas · NumPy · pyngrok · HTML/CSS/JavaScript · pytest
 
-## 📄 License
-
-Add your license here (for example MIT). Remember to state the defensive-use intent in your license or notice.
 
 ## 🙌 Acknowledgements
 
